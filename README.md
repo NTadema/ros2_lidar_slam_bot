@@ -33,6 +33,7 @@ The goal is to develop a modular robotics platform capable of:
 
 ## Software Stack
 
+- Ubuntu 24.04 LTS
 - ROS2 (Jazzy)
 - C++ / Python
 - SLAM Toolbox
