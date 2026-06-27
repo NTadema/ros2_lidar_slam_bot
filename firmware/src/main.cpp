@@ -1,13 +1,18 @@
 #include <Arduino.h>
 #include "drivers/motors.h"
-
-// put function declarations here:
-int myFunction(int, int);
+#include "drivers/encoders.h"
 
 void setup() {
-  motors_init();
+    Serial.begin(115200);
+    motors::init();
+    encoders::init();
 }
 
 void loop() {
-  set_motors_speed(250, 250);
+    motors::set_speed(250,250);
+    Serial.println("Left ticks: ");
+    Serial.println(encoders::get_left_ticks());
+    Serial.println("Right ticks: ");
+    Serial.println(encoders::get_right_ticks());
+    delay(100);
 }

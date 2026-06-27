@@ -40,11 +40,11 @@ void motors::set_speed(int left_speed, int right_speed) {
 
     // Right motor
     if (right_speed > 0) {       // forward
-        digitalWrite(motor_config::RIGHT_IN3_PIN, HIGH);
-        digitalWrite(motor_config::RIGHT_IN4_PIN, LOW);
-    } else if (right_speed < 0) { // backward
         digitalWrite(motor_config::RIGHT_IN3_PIN, LOW);
         digitalWrite(motor_config::RIGHT_IN4_PIN, HIGH);
+    } else if (right_speed < 0) { // backward
+        digitalWrite(motor_config::RIGHT_IN3_PIN, HIGH);
+        digitalWrite(motor_config::RIGHT_IN4_PIN, LOW);
         right_speed = -right_speed;
     } else {
         digitalWrite(motor_config::RIGHT_IN3_PIN, LOW);
