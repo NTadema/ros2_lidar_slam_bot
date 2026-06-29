@@ -30,7 +30,7 @@ inline uint8_t read_right_state(){
 void IRAM_ATTR left_encoder_isr() {
     uint8_t curr = read_left_state();
     int8_t delta = quad_table[left_prev_state][curr];
-
+    
     left_ticks += delta;
     left_prev_state = curr;
 }
@@ -87,15 +87,4 @@ void encoders::reset() {
     left_ticks = 0;
     right_ticks = 0;
     interrupts();
-}
-
-extern volatile long left_ticks;
-extern volatile long right_ticks;
-
-long encoders::get_left_ticks_raw() {
-    return left_ticks;
-}
-
-long encoders::get_right_ticks_raw() {
-    return right_ticks;
 }
