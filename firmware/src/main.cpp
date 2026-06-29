@@ -1,18 +1,32 @@
 #include <Arduino.h>
-#include "drivers/motors.h"
-#include "drivers/encoders.h"
+#include "drivers/imu.h"
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
-    motors::init();
-    encoders::init();
+    delay(1000);
+
+    imu::init();
+    if (!imu::init())
+    {
+        Serial.println("IMU init failed");
+        while (1);
+    }
+
+    Serial.println("IMU OK");
 }
 
-void loop() {
-    motors::set_speed(250,250);
-    Serial.println("Left ticks: ");
-    Serial.println(encoders::get_left_ticks());
-    Serial.println("Right ticks: ");
-    Serial.println(encoders::get_right_ticks());
-    delay(100);
+void loop()
+{
+    imu::ImuData data = imu::read();
+
+    Serial.print("ax: "); Serial.print(data.ax);
+    Serial.print(" ay: "); Serial.print(data.ay);
+    Serial.print(" az: "); Serial.print(data.az);
+
+    Serial.print(" | gx: "); Serial.print(data.gx);
+    Serial.print(" gy: "); Serial.print(data.gy);
+    Serial.print(" gz: "); Serial.println(data.gz);
+
+    delay(50); // ~20 Hz test rate
 }
