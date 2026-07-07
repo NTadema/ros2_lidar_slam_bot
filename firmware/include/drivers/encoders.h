@@ -1,22 +1,50 @@
 #pragma once
 
+
+// Encoder hardware configuration
 namespace encoder_config{
-    // Encoder driver pins
+    // Quadrature encoder channel pins
+    // Each encoder requires two pins (A and B channels) for:
+    //   - Counting pulses (A channel)
+    //   - Determining direction (A vs. B phase relationship)
+
+    // Left encoder
     constexpr int LEFT_A_PIN = 32;
     constexpr int LEFT_B_PIN = 33;
+
+    // Right encoder
     constexpr int RIGHT_A_PIN = 21;
     constexpr int RIGHT_B_PIN = 19;
-    // Define encoder direction
+
+    // Encoder direction multiplier:
+    //   +1: Normal direction (forward rotation increases ticks)
+    //   -1: Reversed direction (forward rotation decreases ticks)
+    // Adjust these if the encoder counts backward relative to the robot's
+    // forward motion (e.g., due to wiring or mechanical orientation)
     constexpr int LEFT_DIR = 1;
     constexpr int RIGHT_DIR = 1;
 }
 
 namespace encoders{
+
+    // Initializes encoder hardware.
     void init();
+
+    // Returns the cumulative tick count for the left encoder.
+    // Ticks are signed (long) to support:
+    //   - Forward motion (positive ticks)
+    //   - Reverse motion (negative ticks)
+    //   - Large distances without overflow (long = ±2.1 billion ticks)
     long get_left_ticks();
+
+    // Returns the cumulative tick count for the right encoder
+    // Same behavior as get_left_ticks(), but for the right wheel
     long get_right_ticks();
-    long get_left_ticks_raw();
-    long get_right_ticks_raw();
+
+    // Resets both left and right encoder tick counters to zero
+    // Call this:
+    //   - At system startup (after init())
+    //   - Before starting a new motion command (for relative distance tracking)
     void reset();
 }
 

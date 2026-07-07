@@ -1,32 +1,42 @@
 #include <Arduino.h>
-#include "drivers/imu.h"
+#include "communication.h"
+
+using namespace uart_comm;
 
 void setup()
 {
-    Serial.begin(115200);
-    delay(1000);
+    Serial.begin(115200);   // debug output
+    uart_comm::init();
 
-    imu::init();
-    if (!imu::init())
-    {
-        Serial.println("IMU init failed");
-        while (1);
-    }
-
-    Serial.println("IMU OK");
+    Serial.println("UART test start");
 }
 
 void loop()
 {
-    imu::ImuData data = imu::read();
+    // 1. Send test encoder packet every 1s
+    static uint32_t last = 0;
 
-    Serial.print("ax: "); Serial.print(data.ax);
-    Serial.print(" ay: "); Serial.print(data.ay);
-    Serial.print(" az: "); Serial.print(data.az);
+    if (millis() - last > 1000)
+    {
+        last = millis();
 
-    Serial.print(" | gx: "); Serial.print(data.gx);
-    Serial.print(" gy: "); Serial.print(data.gy);
-    Serial.print(" gz: "); Serial.println(data.gz);
+        EncoderPacket pkt;
+        pkt.left_ticks = random(-1000, 1000);
+        pkt.right_ticks = random(-1000, 1000);
 
-    delay(50); // ~20 Hz test rate
+        send_encoder_packet(pkt);
+
+        Serial.println("Sent encoder packet");
+    }
+
+    // 2. Read incoming UART bytes and feed parser
+    while (uart_config::SerialPort.available())
+    {
+        uint8_t b = uart_config::SerialPort.read();
+
+        Serial.print("RX byte: ");
+        Serial.println(b, HEX);
+
+        uart_comm::process_byte(b);
+    }
 }
