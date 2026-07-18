@@ -1,42 +1,37 @@
-#include <Arduino.h>
-#include "communication.h"
+#include "communication.hpp"
 
-using namespace uart_comm;
+EncoderPacket encoder_data;
 
 void setup()
 {
-    Serial.begin(115200);   // debug output
-    uart_comm::init();
+    Serial.begin(115200);        // USB debug serial
 
-    Serial.println("UART test start");
+    uart_comm::init();           // UART2 to Pi
+
+    Serial.println("ESP32 UART sender started");
 }
+
 
 void loop()
 {
-    // 1. Send test encoder packet every 1s
-    static uint32_t last = 0;
+    static int32_t ticks = 0;
 
-    if (millis() - last > 1000)
+    encoder_data.left_ticks = ticks;
+    encoder_data.right_ticks = ticks + 100;
+
+    if (uart_comm::send_encoder_packet(encoder_data))
     {
-        last = millis();
-
-        EncoderPacket pkt;
-        pkt.left_ticks = random(-1000, 1000);
-        pkt.right_ticks = random(-1000, 1000);
-
-        send_encoder_packet(pkt);
-
-        Serial.println("Sent encoder packet");
+        Serial.print("Sent encoder packet: ");
+        Serial.print(encoder_data.left_ticks);
+        Serial.print(", ");
+        Serial.println(encoder_data.right_ticks);
+    }
+    else
+    {
+        Serial.println("UART send failed");
     }
 
-    // 2. Read incoming UART bytes and feed parser
-    while (uart_config::SerialPort.available())
-    {
-        uint8_t b = uart_config::SerialPort.read();
+    ticks += 10;
 
-        Serial.print("RX byte: ");
-        Serial.println(b, HEX);
-
-        uart_comm::process_byte(b);
-    }
+    delay(100); // 10Hz packet rate
 }

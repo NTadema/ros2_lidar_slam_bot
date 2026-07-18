@@ -1,5 +1,5 @@
 #include <cstring>
-#include "communication.h"
+#include "communication.hpp"
 
 // -----------------------------------------------------------------------------
 // UART packet protocol

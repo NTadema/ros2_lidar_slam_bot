@@ -1,0 +1,21 @@
+services:
+  ros2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+
+    container_name: ros2_lidar_slam_bot
+
+    network_mode: host
+
+    volumes:
+      - ../ros_ws:/ros_ws
+
+    privileged: true
+
+    stdin_open: true
+    tty: true
+
+    working_dir: /ros_ws
+
+    command: bash

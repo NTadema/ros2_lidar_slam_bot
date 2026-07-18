@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "drivers/imu.h"
+#include "drivers/imu.hpp"
 
 // Private constants (MPU6050 registers)
 namespace

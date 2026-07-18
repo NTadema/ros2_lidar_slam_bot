@@ -1,0 +1,27 @@
+.git/
+.gitignore
+
+# ROS generated files
+ros_ws/build/
+ros_ws/install/
+ros_ws/log/
+
+# ESP32 build files
+firmware/.pio/
+firmware/.pioenvs/
+
+# C/C++ build files
+build/
+CMakeFiles/
+CMakeCache.txt
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.pyc

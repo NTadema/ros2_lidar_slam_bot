@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "drivers/encoders.h"
+#include "drivers/encoders.hpp"
 
 // Cumulative tick counts for each encoder
 // Positive = forward rotation, negative = reverse rotation
