@@ -1,4 +1,5 @@
 #include "communication.hpp"
+#include "drivers/encoders.hpp"
 
 EncoderPacket encoder_data;
 
@@ -14,24 +15,19 @@ void setup()
 
 void loop()
 {
-    static int32_t ticks = 0;
-
-    encoder_data.left_ticks = ticks;
-    encoder_data.right_ticks = ticks + 100;
-
-    if (uart_comm::send_encoder_packet(encoder_data))
+    while (uart_config::SerialPort.available())
     {
-        Serial.print("Sent encoder packet: ");
-        Serial.print(encoder_data.left_ticks);
-        Serial.print(", ");
-        Serial.println(encoder_data.right_ticks);
-    }
-    else
-    {
-        Serial.println("UART send failed");
+        uart_comm::process_byte(uart_config::SerialPort.read());
     }
 
-    ticks += 10;
+    static uint32_t last_tx = 0;
+    if (millis() - last_tx >= 50)   // 20 Hz
+    {
+        EncoderPacket pkt;
+        pkt.left_ticks = encoders::get_left_ticks();
+        pkt.right_ticks = encoders::get_right_ticks();
 
-    delay(100); // 10Hz packet rate
+        uart_comm::send_encoder_packet(pkt);
+        last_tx = millis();
+    }
 }
