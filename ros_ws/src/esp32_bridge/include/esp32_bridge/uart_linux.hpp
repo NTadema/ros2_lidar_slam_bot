@@ -1,4 +1,6 @@
-#pragma once
+// Prevent multiple inclusion of this header file
+#ifndef UART_LINUX_HPP
+#define UART_LINUX_HPP
 
 #include <cstdint>
 #include <string>
@@ -24,3 +26,5 @@ public:
 private:
     int fd_;
 };
+
+#endif  // UART_LINUX_HPP

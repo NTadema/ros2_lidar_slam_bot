@@ -1,9 +1,19 @@
 {
     "name": "ROS2 Jazzy",
+
     "dockerComposeFile": "../docker/compose.yaml",
+
     "service": "ros2",
+
     "workspaceFolder": "/ros_ws",
+
     "remoteUser": "root",
+
+    "remoteEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "XAUTHORITY": "/tmp/.mutter-Xwaylandauth"
+    },
+
     "customizations": {
         "vscode": {
             "extensions": [

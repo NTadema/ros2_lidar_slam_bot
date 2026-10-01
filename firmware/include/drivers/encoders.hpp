@@ -13,8 +13,8 @@ namespace encoder_config{
     constexpr int LEFT_B_PIN = 33;
 
     // Right encoder
-    constexpr int RIGHT_A_PIN = 21;
-    constexpr int RIGHT_B_PIN = 19;
+    constexpr int RIGHT_A_PIN = 19;
+    constexpr int RIGHT_B_PIN = 18;
 
     // Encoder direction multiplier:
     //   +1: Normal direction (forward rotation increases ticks)

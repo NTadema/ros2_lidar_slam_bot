@@ -215,19 +215,25 @@ void uart_comm::process_byte(uint8_t byte)
             }
 }
 
-// UART initialization
-void uart_comm::init()
+// UART initialization PI4b
+/*void uart_comm::init()
 {
     uart_config::SerialPort.begin(
         uart_config::BAUD_RATE,
         SERIAL_8N1,
         uart_config::RXD2_PIN,
         uart_config::TXD2_PIN);
+}*/
+
+// TEMPORARY UART initialization for PC development via USB serial
+void uart_comm::init()
+{
+    Serial.begin(uart_config::BAUD_RATE);
 }
 
 
-// Generic packet transmitter
-static bool send_packet(PacketType type,
+// Generic packet transmitter Pi4b
+/*static bool send_packet(PacketType type,
                         const uint8_t* payload,
                         uint8_t len)
 {
@@ -254,7 +260,38 @@ static bool send_packet(PacketType type,
     ok &= uart_config::SerialPort.write(static_cast<uint8_t>((crc >> 8) & 0xFF)) == 1;
 
     return ok;
+}*/
+
+// TEMPORARY generic packet transmitter for PC development via USB serial
+static bool send_packet(PacketType type,
+                        const uint8_t* payload,
+                        uint8_t len)
+{
+    uint8_t header[HEADER_SIZE] =
+    {
+        START1,
+        START2,
+        static_cast<uint8_t>(type),
+        len
+    };
+
+    uint8_t tmp[HEADER_SIZE + MAX_PAYLOAD];
+
+    memcpy(tmp, header, HEADER_SIZE);
+    memcpy(tmp + HEADER_SIZE, payload, len);
+
+    uint16_t crc = crc16_ccitt(tmp, HEADER_SIZE + len);
+
+    bool ok = true;
+    
+    ok &= Serial.write(header, HEADER_SIZE) == HEADER_SIZE;
+    ok &= Serial.write(payload, len) == len;
+    ok &= Serial.write(static_cast<uint8_t>(crc & 0xFF)) == 1;
+    ok &= Serial.write(static_cast<uint8_t>((crc >> 8) & 0xFF)) == 1;
+
+    return ok;
 }
+
 
 // Encoder packet
 bool uart_comm::send_encoder_packet(const EncoderPacket& packet)

@@ -25,6 +25,7 @@ find_package(geometry_msgs REQUIRED)
 add_library(${PROJECT_NAME}_lib
   src/bridge_node.cpp
   src/serial_protocol.cpp
+  src/uart_linux.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
