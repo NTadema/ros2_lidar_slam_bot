@@ -1,15 +1,27 @@
 #include "esp32_bridge/serial_protocol.hpp"
+#include <cstring>
 
 // Private helper functions for byte conversion
 namespace
 {
-// Converts four little-endian bytes into a signed integer
+// Converts four little-endian bytes into an unsigned 32-bit integer
 uint32_t readUint32LE(const std::vector<uint8_t>& data, size_t offset)
 {
     return static_cast<uint32_t>(data[offset]) |
            (static_cast<uint32_t>(data[offset + 1]) << 8) |
            (static_cast<uint32_t>(data[offset + 2]) << 16) |
            (static_cast<uint32_t>(data[offset + 3]) << 24);
+}
+
+// Converts four little-endian bytes into a floating-point number
+float readFloatLE(const std::vector<uint8_t>& data, size_t offset)
+{
+    uint32_t bits = readUint32LE(data, offset);
+
+    float value;
+    std::memcpy(&value, &bits, sizeof(float));
+
+    return value;
 }
 
 // Converts four little-endian bytes into a signed integer
@@ -124,12 +136,28 @@ bool SerialProtocol::processByte(uint8_t byte)
             if (verifyCRC())
             {   
                 // Decode encoder feedback payload
-                if (type_ == static_cast<uint8_t>(PacketType::ENCODER) && length_ == 8)
+                if (type_ == static_cast<uint8_t>(PacketType::ENCODER) && length_ == 12)
                 {
-                    encoder_.left_ticks = readInt32LE(payload_, 0);
-                    encoder_.right_ticks = readInt32LE(payload_, 4);
+                    encoder_.timestamp_us = readUint32LE(payload_, 0);
+                    encoder_.left_ticks = readInt32LE(payload_, 4);
+                    encoder_.right_ticks = readInt32LE(payload_, 8);
                 }
 
+                // Decode IMU feedback payload
+                else if (type_ == static_cast<uint8_t>(PacketType::IMU) && length_ == 28)
+                {
+                    imu_.timestamp_us = readUint32LE(payload_, 0);
+
+                    imu_.ax = readFloatLE(payload_, 4);
+                    imu_.ay = readFloatLE(payload_, 8);
+                    imu_.az = readFloatLE(payload_, 12);
+
+                    imu_.gx = readFloatLE(payload_, 16);
+                    imu_.gy = readFloatLE(payload_, 20);
+                    imu_.gz = readFloatLE(payload_, 24);
+                }
+
+                // Store the last successfully decoded packet data
                 last_packet_type_ = static_cast<PacketType>(type_);
                 last_encoder_ = encoder_;
                 last_imu_ = imu_;
@@ -138,10 +166,9 @@ bool SerialProtocol::processByte(uint8_t byte)
                 return true;
             }
 
-            resetParser();
-            break;
+        resetParser();
+        break;
     }
-
     return false;
 }
 

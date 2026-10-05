@@ -105,6 +105,12 @@ UartBridge::UartBridge()
         10
     );
 
+    // Publish IMU data as Imu messages
+    imu_pub_ = create_publisher<sensor_msgs::msg::Imu>(
+        "/imu/data_raw",
+        10
+    );
+
     // Periodically check for incoming UART data
     timer_ = create_wall_timer(
         std::chrono::milliseconds(5),
@@ -288,6 +294,25 @@ void UartBridge::readSerial()
         
             }
 
+            else if (type == PacketType::IMU)
+            {
+                const auto imu = serial_protocol_.imuPacket();
+
+                sensor_msgs::msg::Imu imu_msg;
+
+                imu_msg.header.stamp = this->now();
+                imu_msg.header.frame_id = "imu_link";
+
+                imu_msg.linear_acceleration.x = imu.ax;
+                imu_msg.linear_acceleration.y = imu.ay;
+                imu_msg.linear_acceleration.z = imu.az;
+
+                imu_msg.angular_velocity.x = imu.gx;
+                imu_msg.angular_velocity.y = imu.gy;
+                imu_msg.angular_velocity.z = imu.gz;
+
+                imu_pub_->publish(imu_msg);
+            }
             // Ignore unsupported packet types
             else
             {

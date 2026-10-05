@@ -27,19 +27,29 @@ namespace encoder_config{
 
 namespace encoders{
 
+    // Struct to hold a single encoders measurement frame
+    struct EncoderData{
+        int32_t left_ticks;
+        int32_t right_ticks;
+        uint32_t timestamp_us; // Timestamp in microseconds
+    };
+
     // Initializes encoder hardware.
     void init();
 
+    // Returns the current encoder tick counts and timestamp
+    EncoderData read();
+
     // Returns the cumulative tick count for the left encoder.
-    // Ticks are signed (long) to support:
+    // Ticks are signed (int32_t) to support:
     //   - Forward motion (positive ticks)
     //   - Reverse motion (negative ticks)
-    //   - Large distances without overflow (long = ±2.1 billion ticks)
-    long get_left_ticks();
+    //   - Large distances without overflow (int32_t = ±2.1 billion ticks)
+    int32_t get_left_ticks();
 
     // Returns the cumulative tick count for the right encoder
     // Same behavior as get_left_ticks(), but for the right wheel
-    long get_right_ticks();
+    int32_t get_right_ticks();
 
     // Resets both left and right encoder tick counters to zero
     // Call this:

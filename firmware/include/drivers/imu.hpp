@@ -12,7 +12,7 @@ namespace imu_config{
     constexpr uint8_t SCL_PIN = 22;
 
      // I2C bus clock frequency in Hz
-    constexpr uint32_t I2C_CLOCK = 400000; // 400 kHz
+    constexpr uint32_t I2C_CLOCK = 100000; // 100 kHz
 }
 
 // IMU data and API
@@ -20,9 +20,6 @@ namespace imu{
     // Struct to hold a single IMU measurement frame
     struct ImuData
     {
-        // Timestamp in microseconds since system boot
-        uint32_t timestamp_us;
-        
         // Accelerometer data in m/s² (gravity-inclusive)
         // Positive values:
         //   - ax: Forward (robot's +X axis).
@@ -42,6 +39,9 @@ namespace imu{
         float gx;
         float gy;
         float gz;
+
+        // Timestamp in microseconds since system boot
+        uint32_t timestamp_us;
     };
 
     // Initializes the IMU hardware and I2C

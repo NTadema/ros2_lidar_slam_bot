@@ -3,8 +3,8 @@
 
 // Cumulative tick counts for each encoder
 // Positive = forward rotation, negative = reverse rotation
-volatile long left_ticks = 0;
-volatile long right_ticks = 0;
+volatile int32_t left_ticks = 0;
+volatile int32_t right_ticks = 0;
 
 // Previous encoder states (2-bit values: [A][B])
 // Used to detect state transitions for direction calculation
@@ -81,21 +81,41 @@ void encoders::init() {
     attachInterrupt(encoder_config::RIGHT_B_PIN, right_encoder_isr, CHANGE);
 }
 
+// Returns the current encoder tick counts and timestam
+encoders::EncoderData encoders::read()
+{
+    EncoderData data;
+
+    noInterrupts();
+
+    data.left_ticks =
+        left_ticks * encoder_config::LEFT_DIR;
+
+    data.right_ticks =
+        right_ticks * encoder_config::RIGHT_DIR;
+
+    interrupts();
+
+    data.timestamp_us = micros();
+
+    return data;
+}
+
 // Returns the left encoder tick count, scaled by direction
 // noInterrupts()/interrupts(): Temporarily disables/enables all interrupts
 //                              to safely read shared variables
-long encoders::get_left_ticks() {
+int32_t encoders::get_left_ticks() {
     noInterrupts();
-    long ticks = left_ticks * encoder_config::LEFT_DIR; // Apply direction sign
+    int32_t ticks = left_ticks * encoder_config::LEFT_DIR; // Apply direction sign
     interrupts();
     return ticks;
 }
 
 // Returns the right encoder tick count, scaled by direction
 // Same logic as get_left_ticks
-long encoders::get_right_ticks() {
+int32_t encoders::get_right_ticks() {
     noInterrupts();
-    long ticks = right_ticks * encoder_config::RIGHT_DIR; // Apply direction sign
+    int32_t ticks = right_ticks * encoder_config::RIGHT_DIR; // Apply direction sign
     interrupts();
     return ticks;
 }

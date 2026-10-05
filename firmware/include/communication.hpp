@@ -24,6 +24,7 @@ enum PacketType : uint8_t
 
 struct EncoderPacket
 {
+    uint32_t timestamp_us; // Timestamp in microseconds since system boot
     int32_t left_ticks;  // Cumulative tick count for left encoder
     int32_t right_ticks; // Cumulative tick count for right encoder
 };
@@ -41,6 +42,7 @@ struct ImuPacket
 
 struct MotorCommand
 {
+    uint32_t timestamp_us; // Timestamp in microseconds since system boot
     int16_t left_speed;  // Speed command for left motor (-255 to 255)
     int16_t right_speed; // Speed command for right motor (-255 to 255)
 };

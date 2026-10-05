@@ -78,9 +78,7 @@ bool imu::init()
 //     - gx/gy/gz: Angular velocity in rad/s (robotics standard unit).
 imu::ImuData imu::read()
 {
-    ImuData data;
-
-    data.timestamp_us = micros(); // Capture timestamp early for sync
+    ImuData data{};
 
     uint8_t buffer[14]; // Holds raw data for: accel (6B) + temp (2B) + gyro (6B)
 
@@ -114,6 +112,9 @@ imu::ImuData imu::read()
     data.gx = raw_gx / GYRO_SCALE * DEG_TO_RAD;
     data.gy = raw_gy / GYRO_SCALE * DEG_TO_RAD;
     data.gz = raw_gz / GYRO_SCALE * DEG_TO_RAD;
+
+    // Timestamp in microseconds since system boot
+    data.timestamp_us = micros();
 
     return data;
 }

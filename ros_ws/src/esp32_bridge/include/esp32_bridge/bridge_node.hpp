@@ -7,6 +7,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 
 #include <vector>
 #include <cstdint>
@@ -42,6 +43,9 @@ private:
     // Appends a 16-bit unsigned value in little-endian format
     void appendUint16(std::vector<uint8_t>& buffer, uint16_t value);
 
+    // Time synchronization and offset with the ESP32
+    bool esp32_time_init_;
+    int64_t esp32_time_offset_ns_;
 
     // ROS interfaces
     // Subscriber for receiving robot velocity commands
@@ -49,6 +53,9 @@ private:
 
     // Publisher for wheel encoder positions
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
+
+    // Publisher for IMU data
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
 
     // Periodic timer for polling UART data
     rclcpp::TimerBase::SharedPtr timer_;
@@ -73,6 +80,7 @@ constexpr uint8_t START2 = 0x55;
 
 // Packet identifiers for encoder and motor commands
 constexpr uint8_t ENCODER = 1;
+constexpr uint8_t IMU     = 2;
 constexpr uint8_t MOTOR   = 3;
 
 #endif // BRIDGE_NODE_HPP

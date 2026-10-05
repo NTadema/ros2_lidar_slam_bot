@@ -53,6 +53,26 @@ static inline void writeInt32(uint8_t* out, int32_t value)
     out[3] = (value >> 24) & 0xFF;
 }
 
+// Serialize a 32-bit float into little-endian format
+static inline void writeFloat(uint8_t* out, float value)
+{
+    uint32_t bits;
+    memcpy(&bits, &value, sizeof(float));
+
+    out[0] = (bits >> 0) & 0xFF;
+    out[1] = (bits >> 8) & 0xFF;
+    out[2] = (bits >> 16) & 0xFF;
+    out[3] = (bits >> 24) & 0xFF;
+}
+
+// Serialize an unsigned 32-bit integer into little-endian format
+static inline void writeUInt32(uint8_t* out, uint32_t value)
+{
+    out[0] = (value >> 0) & 0xFF;
+    out[1] = (value >> 8) & 0xFF;
+    out[2] = (value >> 16) & 0xFF;
+    out[3] = (value >> 24) & 0xFF;
+}
 
 // UART receive parser
 enum class ParserState
@@ -296,12 +316,33 @@ static bool send_packet(PacketType type,
 // Encoder packet
 bool uart_comm::send_encoder_packet(const EncoderPacket& packet)
 {
-    uint8_t payload[sizeof(EncoderPacket)];
+    uint8_t payload[12];
 
-    writeInt32(&payload[0], packet.left_ticks);
-    writeInt32(&payload[4], packet.right_ticks);
+    writeUInt32(&payload[0], packet.timestamp_us);
+    writeInt32(&payload[4], packet.left_ticks);
+    writeInt32(&payload[8], packet.right_ticks);
 
-    return send_packet(PacketType::ENCODER,
-                       payload,
-                       sizeof(payload));
+    return send_packet(
+        PacketType::ENCODER,
+        payload,
+        sizeof(payload));
+}
+
+// IMU packet
+bool uart_comm::send_imu_packet(const ImuPacket& packet)
+{
+    uint8_t payload[sizeof(ImuPacket)];
+
+    writeUInt32(&payload[0], packet.timestamp_us);
+    writeFloat(&payload[4], packet.ax);
+    writeFloat(&payload[8], packet.ay);
+    writeFloat(&payload[12], packet.az);
+    writeFloat(&payload[16], packet.gx);
+    writeFloat(&payload[20], packet.gy);
+    writeFloat(&payload[24], packet.gz);
+
+    return send_packet(
+        PacketType::IMU,
+        payload,
+        sizeof(payload));
 }

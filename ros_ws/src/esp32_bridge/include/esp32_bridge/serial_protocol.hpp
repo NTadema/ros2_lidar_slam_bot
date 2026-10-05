@@ -16,7 +16,9 @@ enum class PacketType : uint8_t
 
 // Represents encoder data received from the ESP32
 struct EncoderPacket
-{
+{   
+    uint32_t timestamp_us; // Sensor timestamp in microseconds
+    
     // Number of ticks counted by the left and right wheel encoders
     int32_t left_ticks;
     int32_t right_ticks;
