@@ -43,8 +43,8 @@ struct ImuPacket
 struct MotorCommand
 {
     uint32_t timestamp_us; // Timestamp in microseconds since system boot
-    int16_t left_speed;  // Speed command for left motor (-255 to 255)
-    int16_t right_speed; // Speed command for right motor (-255 to 255)
+    float left_speed_mps;  // Speed command for left motor in m/s
+    float right_speed_mps; // Speed command for right motor in m/s
 };
 
 
@@ -55,8 +55,7 @@ namespace uart_comm
     bool send_encoder_packet(const EncoderPacket& packet);
     bool send_imu_packet(const ImuPacket& packet);
 
-    MotorCommand receive_motor_command();
-
     void process_byte(uint8_t b); // RX parser entry point
+    void check_motor_watchdog(); // Check for motor command timeout
 }
 

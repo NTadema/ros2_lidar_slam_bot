@@ -1,5 +1,6 @@
 #include <cstring>
 #include "communication.hpp"
+#include "drivers/motors.hpp"
 
 // -----------------------------------------------------------------------------
 // UART packet protocol
@@ -19,6 +20,10 @@ static constexpr uint8_t START1 = 0xAA;
 static constexpr uint8_t START2 = 0x55;
 static constexpr uint8_t HEADER_SIZE = 4;
 static constexpr size_t MAX_PAYLOAD = 32;
+
+static constexpr uint32_t MOTOR_COMMAND_TIMEOUT_US = 500000; // Timeout for motor command reception
+static uint32_t last_motor_command_time_us = 0; // Timestamp of the last received motor command
+static bool motor_command_received = false; // Flag to indicate if a motor command has been received
 
 // UART2 instance
 HardwareSerial uart_config::SerialPort(2);
@@ -74,6 +79,21 @@ static inline void writeUInt32(uint8_t* out, uint32_t value)
     out[3] = (value >> 24) & 0xFF;
 }
 
+// Deserialize four little-endian bytes into a float
+static inline float readFloat(const uint8_t* data)
+{
+    uint32_t bits =
+        (static_cast<uint32_t>(data[0]) << 0) |
+        (static_cast<uint32_t>(data[1]) << 8) |
+        (static_cast<uint32_t>(data[2]) << 16) |
+        (static_cast<uint32_t>(data[3]) << 24);
+
+    float value;
+    memcpy(&value, &bits, sizeof(float));
+
+    return value;
+}
+
 // UART receive parser
 enum class ParserState
 {
@@ -125,30 +145,36 @@ static bool verify_packet_crc(const Parser& parser)
 
 // Packet dispatcher
 // Called only after framing and CRC have been successfully verified
-static void handle_packet(uint8_t type,
-                          const uint8_t* payload,
-                          uint8_t len)
+static void handle_packet(uint8_t type, const uint8_t* payload, uint8_t len)
 {
     switch (type)
     {
-        case PacketType::ENCODER:
+        case PacketType::MOTOR:
         {
-            int32_t left;
-            int32_t right;
+            if (len != 12)
+                break;
 
-            memcpy(&left, &payload[0], sizeof(int32_t));
-            memcpy(&right, &payload[4], sizeof(int32_t));
+            MotorCommand command;
+
+            memcpy(
+                &command.timestamp_us,
+                &payload[0],
+                sizeof(uint32_t));
+
+            command.left_speed_mps = readFloat(&payload[4]);
+            command.right_speed_mps = readFloat(&payload[8]);
+
+            last_motor_command_time_us = micros();
+            motor_command_received = true;
+
+            Serial.print("MOTOR command: left=");
+            Serial.print(command.left_speed_mps, 3);
+            Serial.print(" m/s, right=");
+            Serial.print(command.right_speed_mps, 3);
+            Serial.println(" m/s");
 
             break;
         }
-
-        case PacketType::IMU:
-            // TODO
-            break;
-
-        case PacketType::MOTOR:
-            // TODO
-            break;
 
         default:
             break;
@@ -236,24 +262,22 @@ void uart_comm::process_byte(uint8_t byte)
 }
 
 // UART initialization PI4b
-/*void uart_comm::init()
-{
+void uart_comm::init()
+{   
+    // Initialize the default Serial port for debugging
+    Serial.begin(uart_config::BAUD_RATE);
+
+    // Initialize UART2 with specified baud rate and pins
     uart_config::SerialPort.begin(
         uart_config::BAUD_RATE,
         SERIAL_8N1,
         uart_config::RXD2_PIN,
         uart_config::TXD2_PIN);
-}*/
-
-// TEMPORARY UART initialization for PC development via USB serial
-void uart_comm::init()
-{
-    Serial.begin(uart_config::BAUD_RATE);
 }
 
 
 // Generic packet transmitter Pi4b
-/*static bool send_packet(PacketType type,
+static bool send_packet(PacketType type,
                         const uint8_t* payload,
                         uint8_t len)
 {
@@ -280,9 +304,10 @@ void uart_comm::init()
     ok &= uart_config::SerialPort.write(static_cast<uint8_t>((crc >> 8) & 0xFF)) == 1;
 
     return ok;
-}*/
+}
 
 // TEMPORARY generic packet transmitter for PC development via USB serial
+/*
 static bool send_packet(PacketType type,
                         const uint8_t* payload,
                         uint8_t len)
@@ -311,6 +336,7 @@ static bool send_packet(PacketType type,
 
     return ok;
 }
+*/
 
 
 // Encoder packet
@@ -345,4 +371,19 @@ bool uart_comm::send_imu_packet(const ImuPacket& packet)
         PacketType::IMU,
         payload,
         sizeof(payload));
+}
+
+void uart_comm::check_motor_watchdog()
+{
+    if (!motor_command_received)
+        return;
+
+    if (micros() - last_motor_command_time_us > MOTOR_COMMAND_TIMEOUT_US)
+    {
+        motor_command_received = false;
+        Serial.println("Motor command timeout! Stopping motors.");
+
+        // Stop motors on timeout
+        motors::set_speed(0, 0); // Stop motors
+    }
 }

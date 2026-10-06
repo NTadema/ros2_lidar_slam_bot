@@ -4,9 +4,6 @@
 
 void setup()
 {
-    Serial.begin(115200);
-    delay(1000);
-
     uart_comm::init();
     encoders::init();
     encoders::reset();
@@ -15,11 +12,13 @@ void setup()
 
 void loop()
 {
-    while (Serial.available())
+    while (uart_config::SerialPort.available())
     {
         uart_comm::process_byte(
-            static_cast<uint8_t>(Serial.read()));
+            static_cast<uint8_t>(uart_config::SerialPort.read()));
     }
+
+    uart_comm::check_motor_watchdog();
 
     static uint32_t last_tx = 0;
 

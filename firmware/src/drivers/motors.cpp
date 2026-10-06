@@ -66,7 +66,3 @@ void motors::set_speed(int left_speed, int right_speed) {
     ledcWrite(motor_config::RIGHT_PWM_CHANNEL, right_speed);
 }
 
-// Stops both motors immediately
-void motors::stop(){
-    set_speed(0, 0);
-}
