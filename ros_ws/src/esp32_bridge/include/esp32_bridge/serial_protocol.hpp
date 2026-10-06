@@ -43,9 +43,10 @@ struct ImuPacket
 // Represents motor command data to be sent to the ESP32
 struct MotorCommand
 {   
-    // Desired speed for the left and right motors
-    int16_t left_speed;
-    int16_t right_speed;
+    uint32_t timestamp_us; // Command timestamp in microseconds
+    // Desired speed in m/s for the left and right motors
+    float left_speed_mps;
+    float right_speed_mps;
 };
 
 // Handles the parsing and creation of packets for UART communication with the ESP32
@@ -65,6 +66,7 @@ public:
     PacketType packetType() const;
     EncoderPacket encoderPacket() const;
     ImuPacket imuPacket() const;
+    MotorCommand motorCommand() const;
 
 private:
     // Calculates the CRC-16 checksum for packet validation

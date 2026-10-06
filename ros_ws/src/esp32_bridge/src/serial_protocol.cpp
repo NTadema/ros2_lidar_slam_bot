@@ -29,6 +29,13 @@ int32_t readInt32LE(const std::vector<uint8_t>& data, size_t offset)
 {
     return static_cast<int32_t>(readUint32LE(data, offset));
 }
+
+// Store an unsigned 16-bit value in little-endian byte order
+void appendUint16(std::vector<uint8_t> &buffer, uint16_t value)
+{
+    buffer.push_back(value & 0xFF);
+    buffer.push_back((value >> 8) & 0xFF);
+}
 }  // namespace
 
 // Initialize parser and stored packet values
@@ -44,33 +51,33 @@ SerialProtocol::SerialProtocol()
 }
 
 std::vector<uint8_t> SerialProtocol::createMotorPacket(
-        const MotorCommand& cmd)
-{   
-    // Create packet buffer
+    const MotorCommand& cmd)
+{
     std::vector<uint8_t> packet;
 
-    // Add packet synchronization bytes
     packet.push_back(0xAA);
     packet.push_back(0x55);
-
-    // Add motor command packet identifier
     packet.push_back(static_cast<uint8_t>(PacketType::MOTOR));
 
-    // Add payload size
-    packet.push_back(sizeof(MotorCommand));
+    // Two float values and a 32-bit timestamp make up the payload length
+    packet.push_back(12);
 
-    // Encode motor speeds as little-endian bytes
-    packet.push_back(cmd.left_speed & 0xFF);
-    packet.push_back((cmd.left_speed >> 8) & 0xFF);
+    const uint8_t* timestamp_bytes =
+        reinterpret_cast<const uint8_t*>(&cmd.timestamp_us);
 
-    packet.push_back(cmd.right_speed & 0xFF);
-    packet.push_back((cmd.right_speed >> 8) & 0xFF);
+    packet.insert(packet.end(), timestamp_bytes, timestamp_bytes + sizeof(uint32_t));
 
-    // Calculate checksum for packet verification
+    const uint8_t* left_bytes = reinterpret_cast<const uint8_t*>(&cmd.left_speed_mps);
+
+    packet.insert(packet.end(), left_bytes, left_bytes + sizeof(float));
+
+    const uint8_t* right_bytes = reinterpret_cast<const uint8_t*>(&cmd.right_speed_mps);
+
+    packet.insert(packet.end(), right_bytes, right_bytes + sizeof(float));
+
     uint16_t crc = crc16(packet);
 
-    packet.push_back(crc & 0xFF);
-    packet.push_back((crc >> 8) & 0xFF);
+    appendUint16(packet, crc);
 
     return packet;
 }

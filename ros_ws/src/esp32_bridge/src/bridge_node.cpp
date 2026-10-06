@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
-#include <sstream>
 
 namespace
 {
@@ -59,9 +58,12 @@ UartLinux uart_;
 // Initialize the ROS node, UART connection, and ROS interfaces
 UartBridge::UartBridge()
 : Node("uart_bridge")
+, esp32_time_initialized_(false)
+, esp32_time_offset_ns_(0)
 , serial_port_(declare_parameter("serial_port", "/dev/ttyUSB0"))
 , baud_rate_(declare_parameter("baud_rate", 115200))
-, encoder_counts_per_revolution_(declare_parameter("encoder_counts_per_revolution", 2024.0)) // Effective encoder counts per wheel revolution
+, encoder_counts_per_revolution_(
+    declare_parameter("encoder_counts_per_revolution", 2024.0))
 {
     RCLCPP_INFO(get_logger(), "Opening UART with baud rate %d", baud_rate_);
 
@@ -124,121 +126,53 @@ UartBridge::UartBridge()
 void UartBridge::cmdVelCallback(
     const geometry_msgs::msg::Twist::SharedPtr msg)
 {
-    // Extract linear and angular velocity commands
     float v = msg->linear.x;
     float w = msg->angular.z;
 
-    // Convert robot velocity into left wheel speed
-    int16_t left_speed =
-        static_cast<int16_t>(v - w * 0.3 / 2.0); // Assuming wheel separation of 0.3 meters
+    float left_speed =
+        v - w * 0.3f / 2.0f;
 
-    // Convert robot velocity into right wheel speed
-    int16_t right_speed =
-        static_cast<int16_t>(v + w * 0.3 / 2.0); // Assuming wheel separation of 0.3 meters
+    float right_speed =
+        v + w * 0.3f / 2.0f;
 
     RCLCPP_INFO(
         get_logger(),
-        "Received cmd_vel: v=%.3f w=%.3f -> left=%d right=%d",
+        "Received cmd_vel: v=%.3f w=%.3f -> left=%.3f right=%.3f",
         v,
         w,
         left_speed,
         right_speed
     );
 
-    // Build the motor command payload
-    std::vector<uint8_t> payload;
-    appendInt16(payload, left_speed);
-    appendInt16(payload, right_speed);
+    MotorCommand command{};
+    command.left_speed_mps = left_speed;
+    command.right_speed_mps = right_speed;
 
-    // Send motor speeds to the ESP32
-    sendPacket(MOTOR, payload);
-}
+    std::vector<uint8_t> packet =
+        serial_protocol_.createMotorPacket(command);
 
-// Store a signed 16-bit value in little-endian byte order
-void UartBridge::appendInt16(std::vector<uint8_t> &buffer, int16_t value)
-{
-    buffer.push_back(value & 0xFF);
-    buffer.push_back((value >> 8) & 0xFF);
-}
-
-// Store an unsigned 16-bit value in little-endian byte order
-void UartBridge::appendUint16(std::vector<uint8_t> &buffer, uint16_t value)
-{
-    buffer.push_back(value & 0xFF);
-    buffer.push_back((value >> 8) & 0xFF);
-}
-
-// Build and send a protocol packet over UART
-void UartBridge::sendPacket(uint8_t type, const std::vector<uint8_t> &payload)
-{
-    std::vector<uint8_t> packet;
-
-    // Add packet start markers
-    packet.push_back(START1);
-    packet.push_back(START2);
-
-    // Store packet type and payload length
-    packet.push_back(type);
-    packet.push_back(payload.size());
-
-    // Append payload bytes
-    packet.insert(packet.end(), payload.begin(), payload.end());
-
-    // Calculate packet checksum
-    uint16_t crc = crc16(packet);
-
-    // Append CRC to the end of the packet
-    appendUint16(packet, crc);
-    
-    // Transmit the packet if the UART is available
     if (uart_.isOpen())
     {
-        bool ok = uart_.write(packet);
-
-
-        std::ostringstream oss;
-        oss << "Sending UART packet: type=0x" << std::hex << static_cast<int>(type)
-            << " len=" << std::dec << packet.size() << " bytes=";
-
-        for (uint8_t byte : packet)
-        {
-            oss << " 0x" << std::hex << static_cast<int>(byte);
-        }
-
-        // Log packet contents for debugging
-        if (ok)
-        {
-            RCLCPP_INFO(get_logger(), "%s", oss.str().c_str());
-        }
-        else
-        {
-            RCLCPP_WARN(get_logger(), "%s", oss.str().c_str());
-        }
+        uart_.write(packet);
     }
 }
 
-// Calculate CRC-16 checksum for packet integrity
-uint16_t UartBridge::crc16(const std::vector<uint8_t> &data)
+rclcpp::Time UartBridge::esp32TimestampToRos(uint32_t timestamp_us)
 {
-    // Initialize CRC accumulator
-    uint16_t crc = 0xFFFF;
+    const int64_t esp_timestamp_ns = static_cast<int64_t>(timestamp_us) * 1000LL;
 
-    // Update CRC with each data byte
-    for (uint8_t b : data)
+    if (!esp32_time_initialized_)
     {
-        crc ^= static_cast<uint16_t>(b) << 8;
+        const int64_t ros_now_ns = this->now().nanoseconds();
 
-        // Process each bit using the CRC polynomial
-        for (int i = 0; i < 8; i++)
-        {
-            if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021;
-            else
-                crc <<= 1;
-        }
+        esp32_time_offset_ns_ = ros_now_ns - esp_timestamp_ns;
+
+        esp32_time_initialized_ = true;
     }
 
-    return crc;
+    const int64_t ros_timestamp_ns = esp_timestamp_ns + esp32_time_offset_ns_;
+
+    return rclcpp::Time(ros_timestamp_ns);
 }
 
 // Read and process incoming UART data
@@ -256,7 +190,7 @@ void UartBridge::readSerial()
             break;
         }
 
-        RCLCPP_INFO(get_logger(), "RX byte: 0x%02x", static_cast<unsigned>(byte));
+        RCLCPP_DEBUG(get_logger(),"RX byte: 0x%02x", static_cast<unsigned>(byte));
 
         // Pass each byte to the packet parser
         if (serial_protocol_.processByte(byte))
@@ -276,7 +210,7 @@ void UartBridge::readSerial()
                 sensor_msgs::msg::JointState joint_state_msg;
 
                 // Set the timestamp and joint names for the JointState message
-                joint_state_msg.header.stamp = this->now();
+                joint_state_msg.header.stamp = esp32TimestampToRos(enc.timestamp_us);
                 joint_state_msg.name = {"left_wheel_joint", "right_wheel_joint"};
                 joint_state_msg.position = {left_position, right_position};
 
@@ -300,7 +234,7 @@ void UartBridge::readSerial()
 
                 sensor_msgs::msg::Imu imu_msg;
 
-                imu_msg.header.stamp = this->now();
+                imu_msg.header.stamp = esp32TimestampToRos(imu.timestamp_us);
                 imu_msg.header.frame_id = "imu_link";
 
                 imu_msg.linear_acceleration.x = imu.ax;
@@ -311,9 +245,9 @@ void UartBridge::readSerial()
                 imu_msg.angular_velocity.y = imu.gy;
                 imu_msg.angular_velocity.z = imu.gz;
 
+                imu_msg.orientation_covariance[0] = -1.0;
                 imu_pub_->publish(imu_msg);
             }
-            // Ignore unsupported packet types
             else
             {
                 RCLCPP_WARN(get_logger(), "Received unsupported packet type %u", static_cast<unsigned>(type));
