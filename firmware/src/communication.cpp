@@ -2,6 +2,9 @@
 #include "communication.hpp"
 #include "drivers/motors.hpp"
 
+#include <cmath>
+#include <algorithm>
+
 // -----------------------------------------------------------------------------
 // UART packet protocol
 //
@@ -24,6 +27,10 @@ static constexpr size_t MAX_PAYLOAD = 32;
 static constexpr uint32_t MOTOR_COMMAND_TIMEOUT_US = 500000; // Timeout for motor command reception
 static uint32_t last_motor_command_time_us = 0; // Timestamp of the last received motor command
 static bool motor_command_received = false; // Flag to indicate if a motor command has been received
+static float target_left_mps = 0.0f; // Target speed for the left motor in meters per second
+static float target_right_mps = 0.0f; // Target speed for the right motor in meters per second
+
+static constexpr float MAX_COMMAND_SPEED_MPS = 0.5f; // Maximum allowed speed command in meters per second
 
 // UART2 instance
 HardwareSerial uart_config::SerialPort(2);
@@ -142,6 +149,20 @@ static bool verify_packet_crc(const Parser& parser)
         parser.crc_low);
 }
 
+bool uart_comm::get_motor_command(
+    float& left_target_mps,
+    float& right_target_mps)
+{
+    left_target_mps = target_left_mps;
+    right_target_mps = target_right_mps;
+
+    return motor_command_received;
+}
+
+bool uart_comm::motor_command_active()
+{
+    return motor_command_received;
+}
 
 // Packet dispatcher
 // Called only after framing and CRC have been successfully verified
@@ -164,14 +185,24 @@ static void handle_packet(uint8_t type, const uint8_t* payload, uint8_t len)
             command.left_speed_mps = readFloat(&payload[4]);
             command.right_speed_mps = readFloat(&payload[8]);
 
+            // Reject invalid or unreasonable commands.
+            if (!std::isfinite(command.left_speed_mps) ||
+                !std::isfinite(command.right_speed_mps))
+            {
+                break;
+            }
+
+            if (std::fabs(command.left_speed_mps) > MAX_COMMAND_SPEED_MPS ||
+                std::fabs(command.right_speed_mps) > MAX_COMMAND_SPEED_MPS)
+            {
+                break;
+            }
+
+            target_left_mps = command.left_speed_mps;
+            target_right_mps = command.right_speed_mps;
+
             last_motor_command_time_us = micros();
             motor_command_received = true;
-
-            Serial.print("MOTOR command: left=");
-            Serial.print(command.left_speed_mps, 3);
-            Serial.print(" m/s, right=");
-            Serial.print(command.right_speed_mps, 3);
-            Serial.println(" m/s");
 
             break;
         }
@@ -306,39 +337,6 @@ static bool send_packet(PacketType type,
     return ok;
 }
 
-// TEMPORARY generic packet transmitter for PC development via USB serial
-/*
-static bool send_packet(PacketType type,
-                        const uint8_t* payload,
-                        uint8_t len)
-{
-    uint8_t header[HEADER_SIZE] =
-    {
-        START1,
-        START2,
-        static_cast<uint8_t>(type),
-        len
-    };
-
-    uint8_t tmp[HEADER_SIZE + MAX_PAYLOAD];
-
-    memcpy(tmp, header, HEADER_SIZE);
-    memcpy(tmp + HEADER_SIZE, payload, len);
-
-    uint16_t crc = crc16_ccitt(tmp, HEADER_SIZE + len);
-
-    bool ok = true;
-    
-    ok &= Serial.write(header, HEADER_SIZE) == HEADER_SIZE;
-    ok &= Serial.write(payload, len) == len;
-    ok &= Serial.write(static_cast<uint8_t>(crc & 0xFF)) == 1;
-    ok &= Serial.write(static_cast<uint8_t>((crc >> 8) & 0xFF)) == 1;
-
-    return ok;
-}
-*/
-
-
 // Encoder packet
 bool uart_comm::send_encoder_packet(const EncoderPacket& packet)
 {
@@ -378,12 +376,16 @@ void uart_comm::check_motor_watchdog()
     if (!motor_command_received)
         return;
 
-    if (micros() - last_motor_command_time_us > MOTOR_COMMAND_TIMEOUT_US)
+    if (micros() - last_motor_command_time_us >
+        MOTOR_COMMAND_TIMEOUT_US)
     {
         motor_command_received = false;
-        Serial.println("Motor command timeout! Stopping motors.");
 
-        // Stop motors on timeout
-        motors::set_speed(0, 0); // Stop motors
+        target_left_mps = 0.0f;
+        target_right_mps = 0.0f;
+
+        motors::set_speed(0, 0);
+
+        Serial.println("Motor command timeout: motors stopped");
     }
 }

@@ -57,5 +57,10 @@ namespace uart_comm
 
     void process_byte(uint8_t b); // RX parser entry point
     void check_motor_watchdog(); // Check for motor command timeout
+
+    bool get_motor_command(float& left_target_mps,
+                       float& right_target_mps);
+    
+    bool motor_command_active();
 }
 

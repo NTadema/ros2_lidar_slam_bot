@@ -62,6 +62,7 @@ bool imu::init()
 {
     // Start I2C transmission to PWR_MGMT_1 register
     Wire.begin(imu_config::SDA_PIN, imu_config::SCL_PIN, imu_config::I2C_CLOCK);
+    Wire.setTimeOut(20);
     Wire.beginTransmission(imu_config::I2C_ADDRESS);
     Wire.write(PWR_MGMT_1);
     Wire.write(0x00); // Wake MPU6050

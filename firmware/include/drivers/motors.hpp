@@ -32,7 +32,7 @@ namespace motor_config{
     //   +1: Normal direction (positive speed = forward)
     //   -1: Reversed direction (positive speed = backward)
     // Adjust if the motor spins in the opposite direction, due to wiring or mechanical orientation
-    constexpr int LEFT_MOTOR_DIR = 1;
+    constexpr int LEFT_MOTOR_DIR = -1;
     constexpr int RIGHT_MOTOR_DIR = 1;
 }
 

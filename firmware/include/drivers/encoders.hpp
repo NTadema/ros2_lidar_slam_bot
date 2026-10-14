@@ -21,7 +21,7 @@ namespace encoder_config{
     //   -1: Reversed direction (forward rotation decreases ticks)
     // Adjust these if the encoder counts backward relative to the robot's
     // forward motion (e.g., due to wiring or mechanical orientation)
-    constexpr int LEFT_DIR = 1;
+    constexpr int LEFT_DIR = -1;
     constexpr int RIGHT_DIR = 1;
 }
 
