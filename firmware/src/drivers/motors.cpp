@@ -1,5 +1,5 @@
-#include <Arduino.h>
 #include "drivers/motors.hpp"
+#include <Arduino.h>
 
 // Initialize motor control pins and PWM
 void motors::init() {
